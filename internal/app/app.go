@@ -25,6 +25,13 @@ type app struct {
 
 func NewApp(config *config.Config) *app {
 
+	if config.Primary == "production" {
+		err := database.Migrate(config)
+		if err != nil {
+			log.Fatalf("failed to migrate database : %v", err)
+		}
+	}
+
 	pool, err := database.NewPgPool(config)
 	if err != nil {
 		log.Fatalf("failed to create postgres pool : %v", err)

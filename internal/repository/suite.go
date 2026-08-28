@@ -325,7 +325,7 @@ func (s *Suite) GetSuitesAndEvents(ctx context.Context, userIp string) ([]domain
 		SELECT 
 			USER_IPS.SUITE_ID,
 			USER_IPS.LAST_SYNCED,
-			SUITES.NAME,
+			SUITES.NAME
 		FROM 
 			USER_IPS
 		INNER JOIN 

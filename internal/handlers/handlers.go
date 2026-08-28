@@ -8,13 +8,13 @@ import (
 )
 
 type Handlers struct {
-	User       *User
+	Ops        *Ops
 	FileSystem *FileSystem
 }
 
 func NewHandlers(service *services.Service) *Handlers {
 	return &Handlers{
-		User: &User{service: service.User},
+		Ops:        &Ops{},
 		FileSystem: &FileSystem{service: service.FileSystem},
 	}
 }

@@ -72,7 +72,7 @@ func (f *FileSystem) Suite(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(suite)
 }
 
-func (f *FileSystem) Ping(w http.ResponseWriter, r *http.Request) {
+func (f *FileSystem) Alive(w http.ResponseWriter, r *http.Request) {
 
 	var input dto.UserIp
 
