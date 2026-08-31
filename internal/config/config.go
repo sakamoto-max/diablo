@@ -95,7 +95,6 @@ func NewConfig() *Config {
 		Jwt:     jwt,
 	}
 
-
 	newValidator := validator.New(validator.WithRequiredStructEnabled())
 
 	err = newValidator.Struct(config)

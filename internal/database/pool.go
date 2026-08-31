@@ -11,7 +11,7 @@ import (
 
 func NewPgPool(config *config.Config) (*pgxpool.Pool, error) {
 	pgUrl := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		config.Pg.User,
 		config.Pg.Password,
 		config.Pg.Host,

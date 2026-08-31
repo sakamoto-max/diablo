@@ -18,15 +18,15 @@ var migrationFiles embed.FS
 func Migrate(config *config.Config) error {
 
 	log.Println("starting database migrations")
-
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		config.Pg.User,
-		config.Pg.Password,
-		config.Pg.Host,
-		config.Pg.Port,
-		config.Pg.Database,
-		config.Pg.SSLMode,
-	)
+	url := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+	config.Pg.User,
+	config.Pg.Password,
+	config.Pg.Host,
+	
+	config.Pg.Port,
+	config.Pg.Database,
+	config.Pg.SSLMode,
+)
 
 	conn, err := pgx.Connect(context.Background(), url)
 	if err != nil {

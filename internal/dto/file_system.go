@@ -7,6 +7,7 @@ type Event struct {
 	Contents  []byte `json:"contents"`
 	FileType  string `json:"fileType"`
 	RenamedTo string `json:"renamedTo"`
+	Sha       string `json:"sha"`
 	Ip        string `json:"ip"`
 }
 
