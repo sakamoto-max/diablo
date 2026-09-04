@@ -5,5 +5,4 @@ type FileMetaData struct {
 	Path  string
 	Type  string
 	IsDir bool
-	// RenamedTo string
 }

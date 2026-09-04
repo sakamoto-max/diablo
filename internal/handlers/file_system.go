@@ -29,7 +29,6 @@ func (f *FileSystem) CreateNewFileSystem(w http.ResponseWriter, r *http.Request)
 
 	err = f.service.New(r.Context(), &input)
 	if err != nil {
-
 		// todo
 		fmt.Println(err)
 		return
@@ -57,7 +56,7 @@ func (f *FileSystem) Sync(w http.ResponseWriter, r *http.Request) {
 
 func (f *FileSystem) Suite(w http.ResponseWriter, r *http.Request) {
 
-	var input dto.Event
+	var input dto.Suite
 	json.NewDecoder(r.Body).Decode(&input)
 
 	suite, err := f.service.GetSuite(r.Context(), input)

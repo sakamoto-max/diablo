@@ -191,7 +191,7 @@ func (s *Synchronizer) Sync(ctx context.Context, input *dto.EventsReq) error {
 	return s.db.Suite.Sync(ctx, input)
 }
 
-func (s *Synchronizer) GetSuite(ctx context.Context, input dto.Event) (*dto.Suite, error) {
+func (s *Synchronizer) GetSuite(ctx context.Context, input dto.Suite) (dto.Suite, error) {
 	return s.db.Suite.Get(ctx, input)
 }
 

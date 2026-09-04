@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+
 	config := config.NewConfig()
 
 	app := app.NewApp(config)

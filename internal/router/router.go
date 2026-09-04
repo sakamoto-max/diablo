@@ -3,10 +3,9 @@ package router
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/sakamoto-max/diablo/internal/handlers"
-	"github.com/sakamoto-max/diablo/internal/middleware"
 )
 
-func NewRouter(handlers *handlers.Handlers, middlewares *middleware.Middlewares) *chi.Mux {
+func NewRouter(handlers *handlers.Handlers) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Post("/ping", handlers.Ops.Ping)

@@ -1,18 +1,16 @@
 package app
 
 import (
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sakamoto-max/diablo/internal/config"
 	"github.com/sakamoto-max/diablo/internal/database"
 	"github.com/sakamoto-max/diablo/internal/handlers"
-	"github.com/sakamoto-max/diablo/internal/middleware"
-	"github.com/sakamoto-max/diablo/internal/pkg/token"
 	"github.com/sakamoto-max/diablo/internal/repository"
 	"github.com/sakamoto-max/diablo/internal/router"
 	"github.com/sakamoto-max/diablo/internal/services"
@@ -20,38 +18,36 @@ import (
 
 type app struct {
 	httpServer *http.Server
-	pool       *pgxpool.Pool
+	dbConn     *sql.DB
+	dbDown     string
 }
 
 func NewApp(config *config.Config) *app {
 
-	if config.Primary == "production" {
-		err := database.Migrate(config)
-		if err != nil {
-			log.Fatalf("failed to migrate database : %v", err)
-		}
-	}
-
-	pool, err := database.NewPgPool(config)
+	dbConn, err := database.New()
 	if err != nil {
-		log.Fatalf("failed to create postgres pool : %v", err)
+		log.Fatalf("failed to create database connection : %v", err)
 	}
 
-	log.Println("created pg pool")
+	log.Println("created db Conn")
 
-	db := repository.NewDb(pool)
+	if config.Db.Up == "yes" {
+		err := database.CreateTables(dbConn)
+		if err != nil {
+			log.Fatalf("failed to create tables : %v", err)
+		}
+		log.Println("created the tables")
+	}
 
-	service := services.NewService(db)
+
+	repo := repository.New(dbConn)
+
+	service := services.NewService(repo)
 
 	handlers := handlers.NewHandlers(service)
 	log.Println("created handlers")
 
-	middlewares := middleware.NewMiddlewares()
-
-	router := router.NewRouter(handlers, middlewares)
-	log.Println("created router")
-
-	token.Init(config)
+	router := router.NewRouter(handlers)
 
 	httpServer := http.Server{
 		Addr:    ":" + config.Http.Port,
@@ -60,7 +56,8 @@ func NewApp(config *config.Config) *app {
 
 	return &app{
 		httpServer: &httpServer,
-		pool:       pool,
+		dbConn:     dbConn,
+		dbDown:     config.Db.Down,
 	}
 }
 
@@ -87,15 +84,13 @@ func (a *app) ShutDown() {
 	a.httpServer.Close()
 	log.Println("http server is closed")
 
-	a.pool.Close()
-	log.Println("pg pool is closed")
+	if a.dbDown == "yes" {
+		database.DropTables(a.dbConn)
+		log.Println("db tables are dropped")
+	}
+
+	a.dbConn.Close()
+	log.Println("db is closed")
 
 	log.Println("server has shutdown")
 }
-
-//{
-// "path" : "diablod/internal/app",
-// "type" : "dir"
-// "contents" : []byte()
-//}
-//

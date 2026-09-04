@@ -2,35 +2,37 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	// "github.com/jackc/pgx/v5"
+
 	"github.com/sakamoto-max/diablo/internal/domain"
 	"github.com/sakamoto-max/diablo/internal/dto"
 )
 
 type Suite struct {
-	db *pgxpool.Pool
+	db *sql.DB
 }
 
 type SuiteIface interface {
 	New(ctx context.Context, suite *dto.NewSuiteReq) error
 	Sync(ctx context.Context, data *dto.EventsReq) error
-	Get(ctx context.Context, input dto.Event) (*dto.Suite, error)
+	Get(ctx context.Context, input dto.Suite) (dto.Suite, error)
 	GetSuitesAndEvents(ctx context.Context, userIp string) ([]domain.LastSyncedData, error)
 	GetFileContents(ctx context.Context, suiteId string, path string) ([]byte, error)
 }
 
 func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 
-	trnx, err := s.db.Begin(ctx)
+	trnx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction")
 	}
 
-	defer trnx.Rollback(ctx)
+	defer trnx.Rollback()
 
 	for _, suite := range suite.Suites {
 		query := `
@@ -39,19 +41,26 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 				@suiteName,
 				@lastChanged
 			)
-			
+
 			RETURNING ID
-		`
+	 	`
 
-		var suiteUUId string
+		log.Println("suite Name is : %v", suite.Name)
 
-		err = trnx.QueryRow(ctx, query, pgx.NamedArgs{
-			"suiteName":   suite.Name,
-			"lastChanged": time.Now(),
-		}).Scan(&suiteUUId)
+		var suiteId int
+
+		
+
+		err = trnx.QueryRowContext(ctx, query,
+			sql.Named("suiteName", suite.Name),
+			sql.Named("lastChanged", time.Now()),
+		).Scan(&suiteId)
 		if err != nil {
 			return fmt.Errorf("failed to insert suite : %w", err)
 		}
+
+		fmt.Println("suite id", suiteId)
+
 
 		for _, file := range suite.Files {
 			query = `
@@ -69,19 +78,19 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 				)
 			`
 
-			_, err = trnx.Exec(ctx, query, pgx.NamedArgs{
-				"suiteId":  suiteUUId,
-				"path":     file.Path,
-				"data":     file.Contents,
-				"fileType": file.FileType,
-			})
+			_, err := trnx.ExecContext(ctx, query,
+				sql.Named("suiteId", suiteId),
+				sql.Named("path", file.Path),
+				sql.Named("data", file.Contents),
+				sql.Named("fileType", file.FileType),
+			)
 			if err != nil {
 				return fmt.Errorf("failed to insert file of path %v : %w", file.Path, err)
 			}
 		}
 	}
 
-	err = trnx.Commit(ctx)
+	err = trnx.Commit()
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction : %w", err)
 	}
@@ -91,12 +100,12 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 
 func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 
-	trnx, err := s.db.Begin(ctx)
+	trnx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction")
 	}
 
-	defer trnx.Rollback(ctx)
+	defer trnx.Rollback()
 
 	for _, event := range data.Events {
 		query := `
@@ -109,9 +118,9 @@ func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 		`
 		var suiteId string
 
-		err = trnx.QueryRow(ctx, query, pgx.NamedArgs{
-			"suiteName": event.SuiteName,
-		}).Scan(&suiteId)
+		err = trnx.QueryRowContext(ctx, query,
+			sql.Named("suiteName", event.SuiteName),
+		).Scan(&suiteId)
 		if err != nil {
 			return fmt.Errorf("failed to get suite id : %w", err)
 		}
@@ -164,14 +173,14 @@ func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 				`
 		}
 
-		_, err = trnx.Exec(ctx, query, pgx.NamedArgs{
-			"suiteId":  suiteId,
-			"path":     event.Path,
-			"data":     event.Contents,
-			"fileType": event.FileType,
-			"newPath":  event.RenamedTo,
-			"oldPath":  event.Path,
-		})
+		_, err = trnx.ExecContext(ctx, query,
+			sql.Named("suiteId", suiteId),
+			sql.Named("path", event.Path),
+			sql.Named("data", event.Contents),
+			sql.Named("fileType", event.FileType),
+			sql.Named("newPath", event.RenamedTo),
+			sql.Named("oldPath", event.Path),
+		)
 		if err != nil {
 			return fmt.Errorf("failed to update file : %w", err)
 		}
@@ -190,18 +199,18 @@ func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 			)
 		`
 
-		_, err := trnx.Exec(ctx, query, pgx.NamedArgs{
-			"suiteId":   suiteId,
-			"eventName": event.Event,
-			"path":      event.Path,
-		})
+		_, err := trnx.ExecContext(ctx, query,
+			sql.Named("suiteId", suiteId),
+			sql.Named("eventName", event.Event),
+			sql.Named("path", event.Path),
+		)
 
 		if err != nil {
 			return fmt.Errorf("failed to insert event : %w", err)
 		}
 	}
 
-	err = trnx.Commit(ctx)
+	err = trnx.Commit()
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction : %w", err)
 	}
@@ -209,14 +218,16 @@ func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 	return nil
 }
 
-func (s *Suite) Get(ctx context.Context, input dto.Event) (*dto.Suite, error) {
+func (s *Suite) Get(ctx context.Context, input dto.Suite) (dto.Suite, error) {
 
-	trnx, err := s.db.Begin(ctx)
+	fmt.Println(input.Name)
+
+	trnx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction")
+		return dto.Suite{}, fmt.Errorf("failed to create transaction")
 	}
 
-	defer trnx.Rollback(ctx)
+	defer trnx.Rollback()
 
 	query := `
 		SELECT
@@ -229,11 +240,11 @@ func (s *Suite) Get(ctx context.Context, input dto.Event) (*dto.Suite, error) {
 
 	var suiteId string
 
-	err = trnx.QueryRow(ctx, query, pgx.NamedArgs{
-		"suiteName": input.SuiteName,
-	}).Scan(&suiteId)
+	err = trnx.QueryRowContext(ctx, query,
+		sql.Named("suiteName", input.Name),
+	).Scan(&suiteId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get suite id : %w", err)
+		return dto.Suite{}, fmt.Errorf("failed to get suite id : %w", err)
 	}
 
 	query = `
@@ -247,11 +258,11 @@ func (s *Suite) Get(ctx context.Context, input dto.Event) (*dto.Suite, error) {
 			SUITE_ID = @suiteId
 	`
 
-	rows, err := trnx.Query(ctx, query, pgx.NamedArgs{
-		"suiteId": suiteId,
-	})
+	rows, err := trnx.QueryContext(ctx, query,
+		sql.Named("suiteId", suiteId),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get rows : %w", err)
+		return dto.Suite{}, fmt.Errorf("failed to get rows : %w", err)
 	}
 
 	var allFiles []dto.Event
@@ -263,62 +274,65 @@ func (s *Suite) Get(ctx context.Context, input dto.Event) (*dto.Suite, error) {
 	for rows.Next() {
 		err := rows.Scan(&path, &data, &fileType)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan rows : %w", err)
+			return dto.Suite{}, fmt.Errorf("failed to scan rows : %w", err)
 		}
 
 		allFiles = append(allFiles, dto.Event{
-			Path:     path,
-			Contents: data,
-			FileType: fileType,
+			SuiteName: input.Name,
+			Path:      path,
+			Contents:  data,
+			FileType:  fileType,
 		})
 	}
 
 	if len(allFiles) == 0 {
-		// todo
+		return dto.Suite{}, nil
 	}
 
-	query = `
-		INSERT INTO USER_IPS(
-			SUITE_ID,
-			IP,
-			LAST_SYNCED
-		)
+	// todo : uncomment this later
 
-		VALUES(
-			@suiteId,
-			@ip,
-			@lastSynced
-		)
+	// query = `
+	// 	INSERT INTO USER_IPS(
+	// 		SUITE_ID,
+	// 		IP,
+	// 		LAST_SYNCED
+	// 	)
+
+	// 	VALUES(
+	// 		@suiteId,
+	// 		@ip,
+	// 		@lastSynced
+	// 	)
 	
-	`
+	// `
 
-	_, err = trnx.Exec(ctx, query, pgx.NamedArgs{
-		"suiteId":    suiteId,
-		"ip":         input.Ip,
-		"lastSynced": time.Now(),
-	})
+	// _, err = trnx.ExecContext(ctx, query,
+	// 	sql.Named("suiteId", suiteId),
+	// 	sql.Named("ip", input.Ip),
+	// 	sql.Named("lastSynced", time.Now()),
+	// )
+	// if err != nil {
+	// 	return dto.Suite{}, fmt.Errorf("failed to insert user ip : %w", err)
+	// }
+
+	err = trnx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert user ip : %w", err)
+		return dto.Suite{}, fmt.Errorf("failed to commit transaction : %w", err)
 	}
 
-	err = trnx.Commit(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to commit transaction : %w", err)
-	}
-
-	return &dto.Suite{
-		Name:  input.SuiteName,
+	return dto.Suite{
+		Name:  input.Name,
 		Files: allFiles,
 	}, nil
 }
 
 func (s *Suite) GetSuitesAndEvents(ctx context.Context, userIp string) ([]domain.LastSyncedData, error) {
-	trnx, err := s.db.Begin(ctx)
+	trnx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin the transaction : %w", err)
 	}
 
-	defer trnx.Rollback(ctx)
+	defer trnx.Rollback()
 
 	// get all the suites of the user
 	query := `
@@ -336,9 +350,7 @@ func (s *Suite) GetSuitesAndEvents(ctx context.Context, userIp string) ([]domain
 			IP = @ip
 	`
 
-	rows, err := trnx.Query(ctx, query, pgx.NamedArgs{
-		"ip": userIp,
-	})
+	rows, err := trnx.QueryContext(ctx, query, sql.Named("ip", userIp))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rows : %w", err)
 	}
@@ -376,10 +388,10 @@ func (s *Suite) GetSuitesAndEvents(ctx context.Context, userIp string) ([]domain
 				AND CHANGED_AT > @lastSynced
 		`
 
-		eventRows, err := trnx.Query(ctx, query, pgx.NamedArgs{
-			"suiteId":    suite.SuiteId,
-			"lastSynced": suite.LastSynced,
-		})
+		eventRows, err := trnx.QueryContext(ctx, query,
+			sql.Named("suiteId", suite.SuiteId),
+			sql.Named("lastSynced", suite.LastSynced),
+		)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to get event rows : %w", err)
@@ -405,7 +417,7 @@ func (s *Suite) GetSuitesAndEvents(ctx context.Context, userIp string) ([]domain
 		}
 	}
 
-	err = trnx.Commit(ctx)
+	err = trnx.Commit()
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit transaction : %w", err)
 	}
@@ -426,10 +438,10 @@ func (s *Suite) GetFileContents(ctx context.Context, suiteId string, path string
 
 	var data []byte
 
-	err := s.db.QueryRow(ctx, query, pgx.NamedArgs{
-		"suiteId": suiteId,
-		"path":    path,
-	}).Scan(&data)
+	err := s.db.QueryRowContext(ctx, query,
+		sql.Named("suiteId", suiteId),
+		sql.Named("path", path),
+	).Scan(&data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file contents : %w", err)
 	}

@@ -1,31 +1,17 @@
 package repository
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"database/sql"
+)
 
 type Db struct {
-	User  UserIface
 	Suite SuiteIface
 }
 
-func NewDb(pool *pgxpool.Pool) *Db {
+func New(db *sql.DB) *Db {
 	return &Db{
-		User:  &User{pool: pool},
-		Suite: &Suite{db: pool},
+		Suite: &Suite{db: db},
 	}
 }
 
-// tables :
 
-// suites:
-// ID
-// NAME
-// LAST_UPDATED
-// LAST_SYNCED
-
-// files:
-// ID
-// NAME
-// PATH
-// LAST_UPDATED
-// LAST_SYNCED
-// IS_DIR
