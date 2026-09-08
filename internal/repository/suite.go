@@ -35,6 +35,18 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 	defer trnx.Rollback()
 
 	for _, suite := range suite.Suites {
+
+		var suiteId int
+
+		// query := `
+		// 	SELECT 
+		// 		ID
+		// 	FROM
+		// 		SUITES
+		// 	WHERE
+		// 		NAME = @suiteName
+		// `
+
 		query := `
 			INSERT INTO SUITES(NAME, LAST_CHANGED)
 			VALUES(
@@ -46,10 +58,6 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 	 	`
 
 		log.Println("suite Name is : %v", suite.Name)
-
-		var suiteId int
-
-		
 
 		err = trnx.QueryRowContext(ctx, query,
 			sql.Named("suiteName", suite.Name),
@@ -68,13 +76,15 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 					SUITE_ID,
 					PATH,
 					DATA,
-					FILE_TYPE
+					FILE_TYPE,
+					RECENT_SHA
 				)
 				VALUES(
 					@suiteId,
 					@path,
 					@data,
-					@fileType
+					@fileType,
+					@recentSha
 				)
 			`
 
@@ -83,6 +93,7 @@ func (s *Suite) New(ctx context.Context, suite *dto.NewSuiteReq) error {
 				sql.Named("path", file.Path),
 				sql.Named("data", file.Contents),
 				sql.Named("fileType", file.FileType),
+				sql.Named("recentSha", file.Sha),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to insert file of path %v : %w", file.Path, err)
@@ -144,13 +155,15 @@ func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 						SUITE_ID,
 						PATH,
 						DATA,
-						FILE_TYPE
+						FILE_TYPE,
+						RECENT_SHA
 					)
 					VALUES(
 						@suiteId,
 						@path,
 						@data,
-						@fileType
+						@fileType,
+						@recentSha
 					)
 				`
 
@@ -180,6 +193,7 @@ func (s *Suite) Sync(ctx context.Context, data *dto.EventsReq) error {
 			sql.Named("fileType", event.FileType),
 			sql.Named("newPath", event.RenamedTo),
 			sql.Named("oldPath", event.Path),
+			sql.Named("recentSha", event.Sha),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to update file : %w", err)

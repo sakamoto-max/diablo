@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/sakamoto-max/diablo/internal/env"
 )
 
 type Config struct {
@@ -25,7 +24,7 @@ type db struct {
 }
 
 func NewConfig() *Config {
-	env.LoadEnv("../../app.env")
+	// env.LoadEnv("../../app.env")
 
 	primary := os.Getenv("PRIMARY")
 

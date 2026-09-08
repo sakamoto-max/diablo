@@ -8,7 +8,7 @@ import (
 )
 
 func New() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "file:demo.db")
+	db, err := sql.Open("sqlite3", "./diablo.db")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn : %w", err)
 	}

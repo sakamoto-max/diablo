@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,6 +25,8 @@ type app struct {
 
 func NewApp(config *config.Config) *app {
 
+	CreateDbFile()
+
 	dbConn, err := database.New()
 	if err != nil {
 		log.Fatalf("failed to create database connection : %v", err)
@@ -38,7 +41,6 @@ func NewApp(config *config.Config) *app {
 		}
 		log.Println("created the tables")
 	}
-
 
 	repo := repository.New(dbConn)
 
@@ -93,4 +95,13 @@ func (a *app) ShutDown() {
 	log.Println("db is closed")
 
 	log.Println("server has shutdown")
+}
+
+func CreateDbFile() {
+	fs, err := os.OpenFile("./diablo.db", os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to create db file : %w", err))
+	}
+
+	fs.Close()
 }

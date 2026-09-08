@@ -20,39 +20,7 @@ const (
 	InitialFileSystem = `C:\Users\clikithh\Desktop\GO_CODE\PROJECTS\diablod_target_data`
 )
 
-// func (s *Synchronizer) New(ctx context.Context, input *dto.AllFiles) error {
 
-// 	log.Println("req received in service")
-
-// 	for _, file := range input.Files {
-
-// 		parentPath, fileName := getParentAndFileName(file.Path)
-
-// 		err := makeDir(parentPath)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to make dir : %w", err)
-// 		}
-
-// 		parentPath = filepath.Join(InitialFileSystem, parentPath)
-// 		// make child
-// 		filePath := filepath.Join(parentPath, fileName)
-// 		osFile, err := os.OpenFile(filePath, os.O_CREATE, os.ModePerm)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to create file %v : %w", file.Path, err)
-// 		}
-
-// 		// write to the file
-// 		_, err = osFile.Write(file.Data)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to write to file %v : %w", file.Path, err)
-// 		}
-
-// 		osFile.Close()
-// 	}
-// 	log.Println("req over in service")
-
-// 	return nil
-// }
 
 func (s *Synchronizer) New(ctx context.Context, input *dto.NewSuiteReq) error {
 
@@ -133,60 +101,6 @@ func Ledge(suitesAndEvents []domain.LastSyncedData) []domain.LastSyncedData {
 
 	return suitesAndEvents
 }
-
-// main.txt create
-// main.txt write
-// main.txt delete
-// user  create
-// repository create
-// repository.go create
-// repository.go write
-// suite.go create
-// suite.go delete
-// main.txt create
-
-// func (s *Synchronizer) Sync(ctx context.Context, input *dto.FileSystem) error {
-
-// 	switch input.Event {
-// 	case "written":
-
-// 		err := writeToFile(input.Path, input.Contents)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to write to file %v : %w", input.Path, err)
-// 		}
-
-// 	case "created":
-
-// 		switch input.IsDir {
-// 		case true:
-// 			err := makeDir(input.Path)
-// 			if err != nil {
-// 				return fmt.Errorf("failed to create dir %v : %w", input.Path, err)
-// 			}
-// 		case false:
-// 			err := makeFile(input.Path)
-// 			if err != nil {
-// 				return fmt.Errorf("failed to create file %v : %w", input.Path, err)
-// 			}
-// 		}
-
-// 	case "deleted":
-
-// 		err := deleteFile(input.Path)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to delete file %v : %w", input.Path, err)
-// 		}
-
-// 	case "renamed":
-// 		err := renameFile(input.Path, input.RenamedTo)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to rename file %v : %w", input.Path, err)
-// 		}
-// 	}
-
-// 	return nil
-// }
-
 func (s *Synchronizer) Sync(ctx context.Context, input *dto.EventsReq) error {
 	return s.db.Suite.Sync(ctx, input)
 }
